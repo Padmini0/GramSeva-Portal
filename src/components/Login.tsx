@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { UserRole, AppLanguage } from "../types";
 import { TRANSLATIONS } from "../translations";
 import { RAJASTHAN_DISTRICTS, getVillagesForDistrict } from "../data/rajasthanData";
@@ -118,10 +118,10 @@ const STEP_TRANSLATIONS: Record<AppLanguage, {
     sendOtpBtn: "Send OTP Code",
     verifyOtpBtn: "Verify Code",
     otpLabel: "Enter 4-Digit OTP",
-    otpHint: "OTP sent. Please enter simulation code 1234 to verify.",
+    otpHint: "OTP dispatched to your registered mobile number.",
     otpSuccess: "✓ Phone Verified",
-    otpRequiredError: "Please enter phone and verify with OTP code '1234'",
-    otpVerifyError: "Invalid OTP! Please use the '1234' simulation code to verify.",
+    otpRequiredError: "Please verify your phone number with the OTP sent.",
+    otpVerifyError: "Incorrect OTP. Please check the code and try again.",
     successTitle: "Account Created Successfully!",
     successDesc: "Your security credentials have been verified and registered on the e-Panchayat system.",
     successName: "Full Name",
@@ -166,10 +166,10 @@ const STEP_TRANSLATIONS: Record<AppLanguage, {
     sendOtpBtn: "ओटीपी कोड भेजें",
     verifyOtpBtn: "कोड सत्यापित करें",
     otpLabel: "4-अंकीय ओटीपी दर्ज करें",
-    otpHint: "ओटीपी भेजा गया। सत्यापित करने के लिए डमी कोड 1234 दर्ज करें",
+    otpHint: "ओटीपी आपके मोबाइल नंबर पर भेज दिया गया है।",
     otpSuccess: "✓ फ़ोन सत्यापित हो गया",
-    otpRequiredError: "कृपया फ़ोन दर्ज करें और ओटीपी कोड '1234' के साथ सत्यापित करें",
-    otpVerifyError: "अमान्य ओटीपी! कृपया सत्यापित करने के लिए '1234' कोड का उपयोग करें।",
+    otpRequiredError: "कृपया अपना मोबाइल नंबर ओटीपी से सत्यापित करें।",
+    otpVerifyError: "गलत ओटीपी। कृपया भेजा गया कोड दिखाएं और पुनः प्रयास करें।",
     successTitle: "खाता सफलतापूर्वक बनाया गया!",
     successDesc: "आपका राजस्थान ई-पंचायत खाता स्वीकृत और सत्यापित कर दिया गया है।",
     successName: "पूरा नाम",
@@ -214,10 +214,10 @@ const STEP_TRANSLATIONS: Record<AppLanguage, {
     sendOtpBtn: "ओटीपी भेजो सा",
     verifyOtpBtn: "कोड पक्की करो सा",
     otpLabel: "४-अंकीय ओटीपी लिखो सा",
-    otpHint: "ओटीपी भेज दियो है सा। पक्की करण सारू गुप्त नंबर 1234 लिखो सा",
+    otpHint: "ओटीपी थारा मोबाइल नंबर पर भेजियो गयो सा।",
     otpSuccess: "✓ फ़ोन नंबर पक्को होग्यो सा",
-    otpRequiredError: "कृपया फोन लिखकर ओटीपी '1234' सूं सत्यापित करो सा।",
-    otpVerifyError: "ओटीपी मिलियो कोनी सा! पक्की करण सारू '1234' कोड रो उपयोग करो सा।",
+    otpRequiredError: "मोबाइल नंबर ओटीपी सूं पक्को करो सा।",
+    otpVerifyError: "गलत ओटीपी सा। भेजियो गयो कोड देखो अर फेर कोशिश करो सा।",
     successTitle: "खातो सफ़लतापूर्वक बणग्यो सा!",
     successDesc: "थारो राजस्थान ई-पंचायत खातो मंजूर अर जांच्यो ग्यो है सा।",
     successName: "पूरो नाम सा",
@@ -272,6 +272,13 @@ export default function Login({
   const [step3OtpInput, setStep3OtpInput] = useState("");
   const [step3OtpVerified, setStep3OtpVerified] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [generatedOtp, setGeneratedOtp] = useState<string>("");
+  const [step3GeneratedOtp, setStep3GeneratedOtp] = useState<string>("");
+  const [otpResendCountdown, setOtpResendCountdown] = useState<number>(0);
+  const [step3OtpResendCountdown, setStep3OtpResendCountdown] = useState<number>(0);
+  const otpTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const step3OtpTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   const [savedSuccessUser, setSavedSuccessUser] = useState<any>(null);
 
   const setIsLandingActive = (val: boolean) => {
@@ -279,6 +286,47 @@ export default function Login({
       propsSetIsLandingActive(val);
     }
   };
+
+  // Generate a random 4-digit OTP
+  const generateOtp = (): string =>
+    Math.floor(1000 + Math.random() * 9000).toString();
+
+  // Countdown timer for OTP resend (subStep 2)
+  useEffect(() => {
+    if (otpResendCountdown > 0) {
+      otpTimerRef.current = setInterval(() => {
+        setOtpResendCountdown(prev => {
+          if (prev <= 1) {
+            if (otpTimerRef.current) clearInterval(otpTimerRef.current);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (otpTimerRef.current) clearInterval(otpTimerRef.current);
+    };
+  }, [otpResendCountdown]);
+
+  // Countdown timer for OTP resend (step 3 phone)
+  useEffect(() => {
+    if (step3OtpResendCountdown > 0) {
+      step3OtpTimerRef.current = setInterval(() => {
+        setStep3OtpResendCountdown(prev => {
+          if (prev <= 1) {
+            if (step3OtpTimerRef.current) clearInterval(step3OtpTimerRef.current);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (step3OtpTimerRef.current) clearInterval(step3OtpTimerRef.current);
+    };
+  }, [step3OtpResendCountdown]);
+
 
   // Preloaded Configuration Map
   const DEMO_CREDENTIALS = [
@@ -446,7 +494,7 @@ export default function Login({
       setGender(role === UserRole.OFFICIAL ? "Female" : "Male");
       setOtpSent(true);
       setOtpVerified(true);
-      setOtpInput("1234");
+      setOtpInput(generatedOtp || "");
       setStep3OtpVerified(true);
       setSubStep(3); // Go straight to location selection for verification
     } else {
@@ -481,13 +529,20 @@ export default function Login({
       );
       return;
     }
+    const otp = generateOtp();
+    setGeneratedOtp(otp);
     setError(null);
     setOtpSent(true);
     setOtpInput("");
+    setOtpResendCountdown(30);
   };
 
   const handleVerifyOtp = () => {
-    if (otpInput === "1234") {
+    if (!otpInput.trim()) {
+      setError(language === AppLanguage.HI ? "ओटीपी दर्ज करें।" : "Please enter the OTP.");
+      return;
+    }
+    if (otpInput === generatedOtp) {
       setOtpVerified(true);
       setError(null);
     } else {
@@ -504,22 +559,25 @@ export default function Login({
       );
       return;
     }
+    const otp = generateOtp();
+    setStep3GeneratedOtp(otp);
     setError(null);
     setStep3OtpSent(true);
     setStep3OtpInput("");
     setStep3OtpVerified(false);
+    setStep3OtpResendCountdown(30);
   };
 
   const handleVerifyStep3Otp = () => {
-    if (step3OtpInput === "1234" || step3OtpInput === "0000") {
+    if (!step3OtpInput.trim()) {
+      setError(language === AppLanguage.HI ? "ओटीपी दर्ज करें।" : "Please enter the OTP.");
+      return;
+    }
+    if (step3OtpInput === step3GeneratedOtp) {
       setStep3OtpVerified(true);
       setError(null);
     } else {
-      setError(
-        language === AppLanguage.HI 
-          ? "गलत ओटीपी। कृपया '1234' का उपयोग करें।" 
-          : "Invalid OTP. Please enter '1234' for simulator."
-      );
+      setError(st.otpVerifyError);
     }
   };
 
@@ -1528,11 +1586,57 @@ export default function Login({
                       )}
                     </div>
 
-                    {/* Developer notification code */}
-                    {!otpVerified && (
-                      <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-[10px] text-amber-800 flex items-start space-x-1.5 leading-relaxed font-sans mt-2.5">
-                        <Sparkles className="h-3.5 w-3.5 text-amber-600 shrink-0 mt-0.5" />
-                        <span>{st.otpHint}</span>
+                    {/* OTP SMS Preview + Resend */}
+                    {!otpVerified && generatedOtp && (
+                      <div className="mt-2.5 space-y-2">
+                        {/* Mock SMS notification card */}
+                        <div className="rounded-xl border border-slate-200 overflow-hidden">
+                          <div className="bg-slate-100 px-3 py-1.5 flex items-center justify-between">
+                            <div className="flex items-center space-x-1.5">
+                              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                              <span className="text-[9px] font-bold text-slate-600 uppercase tracking-widest font-mono">SMS • GramSeva Rajasthan</span>
+                            </div>
+                            <span className="text-[9px] text-slate-400 font-mono">Now</span>
+                          </div>
+                          <div className="bg-white px-3 py-2.5">
+                            <p className="text-[10px] text-slate-600 leading-relaxed">
+                              {language === AppLanguage.HI
+                                ? `आपका GramSeva ओटीपी है: `
+                                : language === AppLanguage.MW
+                                  ? `थारो GramSeva OTP सा: `
+                                  : "Your GramSeva OTP is: "}
+                              <span className="font-black text-xl tracking-[0.3em] text-orange-700 font-mono">{generatedOtp}</span>
+                            </p>
+                            <p className="text-[9px] text-slate-400 mt-1">
+                              {language === AppLanguage.HI ? "इस कोड को किसी से साझा न करें। 5 मिनट में अवैध हो जाएगा।" : "Do not share this OTP with anyone. Valid for 5 minutes."}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Resend countdown */}
+                        <div className="flex items-center justify-between text-[10px] font-semibold text-slate-500 px-0.5">
+                          <span>
+                            {language === AppLanguage.HI
+                              ? `+91 ${phone} पर भेजा गया`
+                              : `Sent to +91 ${phone}`}
+                          </span>
+                          {otpResendCountdown > 0 ? (
+                            <span className="text-slate-400 font-mono">{otpResendCountdown}s</span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const otp = generateOtp();
+                                setGeneratedOtp(otp);
+                                setOtpInput("");
+                                setOtpResendCountdown(30);
+                              }}
+                              className="text-orange-700 font-bold hover:underline cursor-pointer"
+                            >
+                              {language === AppLanguage.HI ? "ओटीपी पुन: भेजें" : "Resend OTP"}
+                            </button>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1722,9 +1826,43 @@ export default function Login({
                             {language === AppLanguage.HI ? "प्रमाणित करें" : "Verify Code"}
                           </button>
                         </div>
-                        <div className="p-2 bg-amber-50 border border-amber-200 rounded-lg text-[9px] text-amber-800 flex items-start space-x-1.5 leading-tight">
-                          <Sparkles className="h-3 w-3 text-amber-600 shrink-0 mt-0.5" />
-                          <span>{st.otpHint}</span>
+                        {/* OTP SMS preview - step 3 */}
+                        {step3GeneratedOtp && (
+                          <div className="rounded-xl border border-slate-200 overflow-hidden mt-0.5">
+                            <div className="bg-slate-100 px-3 py-1 flex items-center justify-between">
+                              <div className="flex items-center space-x-1.5">
+                                <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                                <span className="text-[8px] font-bold text-slate-600 uppercase tracking-widest font-mono">SMS • GramSeva</span>
+                              </div>
+                              <span className="text-[8px] text-slate-400 font-mono">Now</span>
+                            </div>
+                            <div className="bg-white px-3 py-2">
+                              <p className="text-[10px] text-slate-600">
+                                {language === AppLanguage.HI ? "आपका OTP: " : "Your OTP: "}
+                                <span className="font-black text-lg tracking-[0.3em] text-orange-700 font-mono">{step3GeneratedOtp}</span>
+                              </p>
+                              <p className="text-[8px] text-slate-400 mt-0.5">{language === AppLanguage.HI ? "किसी से साझा न करें। 5 मिनट में अवैध।" : "Valid 5 min. Do not share."}</p>
+                            </div>
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between text-[9px] font-semibold text-slate-500 px-0.5 mt-1">
+                          <span>{language === AppLanguage.HI ? `+91 ${phone} पर भेजा` : `Sent to +91 ${phone}`}</span>
+                          {step3OtpResendCountdown > 0 ? (
+                            <span className="text-slate-400 font-mono">{step3OtpResendCountdown}s</span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const otp = generateOtp();
+                                setStep3GeneratedOtp(otp);
+                                setStep3OtpInput("");
+                                setStep3OtpResendCountdown(30);
+                              }}
+                              className="text-orange-700 font-bold hover:underline cursor-pointer"
+                            >
+                              {language === AppLanguage.HI ? "पुन: भेजें" : "Resend"}
+                            </button>
+                          )}
                         </div>
                       </div>
                     )}
