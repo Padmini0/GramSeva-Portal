@@ -354,22 +354,72 @@ export default function Login({
     }
   };
 
+  // Password strength helper
+  const getPasswordRules = (pwd: string) => ({
+    minLength: pwd.length >= 8,
+    hasUpper: /[A-Z]/.test(pwd),
+    hasNumber: /[0-9]/.test(pwd),
+    hasSpecial: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pwd),
+  });
+
+  const getPasswordStrengthLevel = (pwd: string) => {
+    const r = getPasswordRules(pwd);
+    const score = [r.minLength, r.hasUpper, r.hasNumber, r.hasSpecial].filter(Boolean).length;
+    if (score <= 1) return "weak";
+    if (score === 2 || score === 3) return "medium";
+    return "strong";
+  };
+
+  // Email format validator
+  const isValidEmail = (email: string) =>
+    /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/.test(email.trim());
+
+  // Indian mobile number validator: exactly 10 digits, starts with 6/7/8/9
+  const isValidIndianPhone = (ph: string) =>
+    /^[6-9][0-9]{9}$/.test(ph.replace(/\D/g, ""));
+
   const handleContinueToStep2 = () => {
     setError(null);
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!signUpEmail.trim() || !emailRegex.test(signUpEmail)) {
+    if (!signUpEmail.trim() || !isValidEmail(signUpEmail)) {
       setError(
         language === AppLanguage.HI 
-          ? "कृपया सही ईमेल पता दर्ज करें।" 
-          : "Please enter a valid email address."
+          ? "कृपया सही ईमेल पता दर्ज करें (जैसे: name@example.com)" 
+          : language === AppLanguage.MW
+            ? "सही ईमेल पता लिखो सा (जैसे: name@example.com)"
+            : "Please enter a valid email address (e.g. name@example.com)."
       );
       return;
     }
-    if (!signUpPassword.trim() || signUpPassword.trim().length < 6) {
+    const pwdRules = getPasswordRules(signUpPassword);
+    if (!pwdRules.minLength) {
       setError(
         language === AppLanguage.HI 
-          ? "पासवर्ड कम से कम ६ अक्षरों का होना चाहिए।" 
-          : "Password must be at least 6 characters long."
+          ? "पासवर्ड कम से कम ८ अक्षरों का होना चाहिए।" 
+          : "Password must be at least 8 characters long."
+      );
+      return;
+    }
+    if (!pwdRules.hasUpper) {
+      setError(
+        language === AppLanguage.HI 
+          ? "पासवर्ड में कम से कम एक बड़ा अक्षर (A-Z) होना चाहिए।" 
+          : "Password must contain at least one uppercase letter (A–Z)."
+      );
+      return;
+    }
+    if (!pwdRules.hasNumber) {
+      setError(
+        language === AppLanguage.HI 
+          ? "पासवर्ड में कम से कम एक अंक (0-9) होना चाहिए।" 
+          : "Password must contain at least one number (0–9)."
+      );
+      return;
+    }
+    if (!pwdRules.hasSpecial) {
+      setError(
+        language === AppLanguage.HI 
+          ? "पासवर्ड में कम से कम एक विशेष चिन्ह (!@#$%) होना चाहिए।" 
+          : "Password must contain at least one special character (!@#$%^&*)."
       );
       return;
     }
@@ -421,13 +471,13 @@ export default function Login({
   };
 
   const handleSendOtp = () => {
-    if (!phone || phone.trim().length < 10) {
+    if (!isValidIndianPhone(phone)) {
       setError(
-        language === AppLanguage.MW 
-          ? "फ़ोन नंबर कम सूं कम १० आंकड़ें रो लिखो सा।" 
-          : language === AppLanguage.HI 
-            ? "कृपया एक वैध 10-अंकीय फ़ोन नंबर दर्ज करें।" 
-            : "Please enter a valid 10-digit phone number first."
+        language === AppLanguage.MW
+          ? "सही १० अंकीय मोबाइल नंबर लिखो सा (6/7/8/9 सूं शुरू होवे)।"
+          : language === AppLanguage.HI
+            ? "कृपया वैध 10-अंकीय भारतीय मोबाइल नंबर दर्ज करें (6, 7, 8 या 9 से शुरू होना चाहिए)।"
+            : "Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9."
       );
       return;
     }
@@ -446,11 +496,11 @@ export default function Login({
   };
 
   const handleSendStep3Otp = () => {
-    if (!phone || phone.trim().length < 10) {
+    if (!isValidIndianPhone(phone)) {
       setError(
-        language === AppLanguage.HI 
-          ? "कृपया 10-अंकीय फ़ोन नंबर दर्ज करें।" 
-          : "Please enter a valid 10-digit phone number."
+        language === AppLanguage.HI
+          ? "कृपया वैध 10-अंकीय भारतीय मोबाइल नंबर दर्ज करें (6, 7, 8 या 9 से शुरू)।"
+          : "Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9."
       );
       return;
     }
@@ -490,11 +540,11 @@ export default function Login({
       );
       return;
     }
-    if (!phone.trim() || phone.trim().length < 10) {
+    if (!isValidIndianPhone(phone)) {
       setError(
-        language === AppLanguage.HI 
-          ? "कृपया 10-अंकीय फ़ोन नंबर दर्ज करें।" 
-          : "Please enter a valid 10-digit phone number."
+        language === AppLanguage.HI
+          ? "कृपया वैध 10-अंकीय भारतीय मोबाइल नंबर दर्ज करें (6, 7, 8 या 9 से शुरू होना चाहिए)।"
+          : "Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9."
       );
       return;
     }
@@ -541,11 +591,11 @@ export default function Login({
       );
       return;
     }
-    if (!phone.trim() || phone.trim().length < 10) {
+    if (!isValidIndianPhone(phone)) {
       setError(
-        language === AppLanguage.HI 
-          ? "कृपया 10-अंकीय फ़ोन नंबर दर्ज करें।" 
-          : "Please enter a valid 10-digit phone number."
+        language === AppLanguage.HI
+          ? "कृपया वैध 10-अंकीय भारतीय मोबाइल नंबर दर्ज करें (6, 7, 8 या 9 से शुरू होना चाहिए)।"
+          : "Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9."
       );
       return;
     }
@@ -974,9 +1024,30 @@ export default function Login({
                             setError(null);
                           }}
                           placeholder="e.g. resident@panchayat.org"
-                          className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl py-2.5 pl-10 pr-4 text-xs focus:outline-none focus:ring-2 focus:ring-orange-500 shadow-inner font-semibold"
+                          className={`w-full bg-slate-50 border text-slate-900 rounded-xl py-2.5 pl-10 pr-9 text-xs focus:outline-none focus:ring-2 focus:ring-orange-500 shadow-inner font-semibold transition-colors ${
+                            signUpEmail.length === 0
+                              ? "border-slate-200"
+                              : isValidEmail(signUpEmail)
+                                ? "border-emerald-400 bg-emerald-50/30"
+                                : "border-rose-300 bg-rose-50/30"
+                          }`}
                         />
+                        {signUpEmail.length > 0 && (
+                          <span className="absolute right-3 top-2.5">
+                            {isValidEmail(signUpEmail)
+                              ? <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                              : <AlertCircle className="h-4 w-4 text-rose-400" />
+                            }
+                          </span>
+                        )}
                       </div>
+                      {signUpEmail.length > 0 && !isValidEmail(signUpEmail) && (
+                        <p className="text-[10px] text-rose-500 font-semibold mt-0.5 pl-1">
+                          {language === AppLanguage.HI
+                            ? "वैध फ़ॉर्मेट: name@example.com"
+                            : "Valid format: name@example.com"}
+                        </p>
+                      )}
                     </div>
 
                     {/* Password input */}
@@ -1006,6 +1077,45 @@ export default function Login({
                           {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
                       </div>
+
+                      {/* Password strength bar + rules checklist */}
+                      {signUpPassword.length > 0 && (() => {
+                        const rules = getPasswordRules(signUpPassword);
+                        const level = getPasswordStrengthLevel(signUpPassword);
+                        const barColor = level === "strong" ? "#16a34a" : level === "medium" ? "#d97706" : "#dc2626";
+                        const barWidth = level === "strong" ? "100%" : level === "medium" ? "60%" : "25%";
+                        const levelLabel = level === "strong"
+                          ? (language === AppLanguage.HI ? "मजबूत" : "Strong")
+                          : level === "medium"
+                            ? (language === AppLanguage.HI ? "मध्यम" : "Medium")
+                            : (language === AppLanguage.HI ? "कमजोर" : "Weak");
+                        return (
+                          <div className="mt-1.5 space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden mr-2">
+                                <div
+                                  className="h-full rounded-full transition-all duration-300"
+                                  style={{ width: barWidth, backgroundColor: barColor }}
+                                />
+                              </div>
+                              <span className="text-[10px] font-bold" style={{ color: barColor }}>{levelLabel}</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+                              {[
+                                { ok: rules.minLength, label: language === AppLanguage.HI ? "२ अक्षर न्यूनतम" : "8+ characters" },
+                                { ok: rules.hasUpper,  label: language === AppLanguage.HI ? "बड़ा अक्षर (A-Z)" : "Uppercase (A-Z)" },
+                                { ok: rules.hasNumber, label: language === AppLanguage.HI ? "अंक (0-9)" : "Number (0-9)" },
+                                { ok: rules.hasSpecial,label: language === AppLanguage.HI ? "विशेष चिन्ह (!@#$)" : "Special char (!@#$)" },
+                              ].map(({ ok, label }) => (
+                                <div key={label} className="flex items-center space-x-1">
+                                  <span className={`text-[9px] font-extrabold ${ok ? "text-emerald-500" : "text-slate-300"}`}>{ok ? "✓" : "✗"}</span>
+                                  <span className={`text-[9px] font-semibold ${ok ? "text-emerald-700" : "text-slate-400"}`}>{label}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
 
@@ -1299,9 +1409,30 @@ export default function Login({
                           setError(null);
                         }}
                         placeholder="e.g. 9876543210"
-                        className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl py-2.5 pl-11 pr-4 text-xs focus:outline-none focus:ring-2 focus:ring-orange-500 shadow-inner font-mono font-semibold"
+                        className={`w-full bg-slate-50 border text-slate-900 rounded-xl py-2.5 pl-11 pr-9 text-xs focus:outline-none focus:ring-2 focus:ring-orange-500 shadow-inner font-mono font-semibold transition-colors ${
+                          phone.length === 0
+                            ? "border-slate-200"
+                            : isValidIndianPhone(phone)
+                              ? "border-emerald-400 bg-emerald-50/30"
+                              : "border-rose-300 bg-rose-50/30"
+                        }`}
                       />
+                      {phone.length > 0 && (
+                        <span className="absolute right-3 top-2.5">
+                          {isValidIndianPhone(phone)
+                            ? <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                            : <AlertCircle className="h-4 w-4 text-rose-400" />
+                          }
+                        </span>
+                      )}
                     </div>
+                    {phone.length > 0 && !isValidIndianPhone(phone) && (
+                      <p className="text-[10px] text-rose-500 font-semibold mt-0.5 pl-1">
+                        {phone.length < 10
+                          ? (language === AppLanguage.HI ? `अभी ${phone.length}/10 अंक दर्ज हैं` : `${phone.length}/10 digits entered`)
+                          : (language === AppLanguage.HI ? "6, 7, 8 या 9 से शुरू होना चाहिए" : "Must start with 6, 7, 8, or 9")}
+                      </p>
+                    )}
                   </div>
 
                   {/* 4. Gender Selector option */}
