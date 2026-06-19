@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import { TRANSLATIONS } from "../translations";
 import { AppLanguage, UserRole, CertificateType, CertificateApplication, ApplicationStatus } from "../types";
-import { PlusCircle, FileText, CheckCircle2, XCircle, Clock, ShieldCheck, User2, Upload, AlertCircle, Sparkles } from "lucide-react";
+import { PlusCircle, FileText, CheckCircle2, XCircle, Clock, ShieldCheck, User2, Upload, AlertCircle, Sparkles, X, ImageIcon } from "lucide-react";
 import ReadAloud from "./ReadAloud";
 
 interface CertificatesProps {
@@ -30,7 +30,30 @@ export default function Certificates({
   const [citizenName, setCitizenName] = useState("");
   const [aadhaar, setAadhaar] = useState("");
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [selectedFileDataUrl, setSelectedFileDataUrl] = useState<string | null>(null);
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [aadhaarError, setAadhaarError] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
+  const certFileRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = useCallback((file: File) => {
+    setSelectedFileName(file.name);
+    setSelectedFile(file.name);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setSelectedFileDataUrl(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  }, []);
+
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); };
+  const handleDragLeave = () => setIsDragging(false);
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleFileSelect(file);
+  };
 
   // Automated form pre-filling from Bhashini Voice Sathi extraction & user intents
   React.useEffect(() => {
@@ -83,6 +106,7 @@ export default function Certificates({
       type: certType,
       citizenName: citizenName || "Ram Chandra Meena",
       citizenAadhaar: aadhaar,
+      docUrl: selectedFileDataUrl || undefined,
       status: ApplicationStatus.PENDING,
       submissionDate: new Date().toISOString().split("T")[0],
       lastUpdated: new Date().toISOString().split("T")[0],
@@ -106,6 +130,9 @@ export default function Certificates({
     setCitizenName("");
     setAadhaar("");
     setSelectedFile(null);
+    setSelectedFileDataUrl(null);
+    setSelectedFileName(null);
+    if (certFileRef.current) certFileRef.current.value = "";
   };
 
   // Sign & Approve action for Panchayat officials
@@ -306,19 +333,58 @@ export default function Certificates({
               {aadhaarError && <p className="text-[10px] text-rose-600 mt-1">{aadhaarError}</p>}
             </div>
 
-            {/* Document Upload / Camera Sim */}
+            {/* Document Upload - Real file picker with drag-and-drop */}
             <div>
               <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase font-sans">
                 {t.photoDoc}
               </label>
-              <div className="border-2 border-dashed border-slate-200 rounded-xl p-4 text-center cursor-pointer hover:bg-slate-50 transition" onClick={() => setSelectedFile("aadhaar-verification-simulated.png")}>
-                <input type="file" className="hidden" id="cert-upload" />
-                <Upload className="h-6 w-6 text-slate-400 mx-auto mb-2" />
-                <p className="text-xs text-slate-600 font-medium font-sans">
-                  {selectedFile ? `✓ File Connected: ${selectedFile}` : "Drag and drop or tap to simulated camera snapshot"}
-                </p>
-                <p className="text-[10px] text-slate-400 mt-0.5">Sparsely mapped village criteria</p>
-              </div>
+              <input
+                ref={certFileRef}
+                type="file"
+                accept="image/*,application/pdf"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFileSelect(file);
+                }}
+              />
+              {selectedFileDataUrl ? (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 overflow-hidden">
+                  {selectedFileDataUrl.startsWith("data:image") ? (
+                    <img src={selectedFileDataUrl} alt="Document preview" className="w-full h-28 object-cover" />
+                  ) : (
+                    <div className="flex items-center justify-center h-20 bg-orange-50">
+                      <ImageIcon className="h-8 w-8 text-orange-400" />
+                    </div>
+                  )}
+                  <div className="px-3 py-2 flex items-center justify-between">
+                    <span className="text-[11px] text-emerald-700 font-semibold font-sans truncate max-w-[180px]">✓ {selectedFileName}</span>
+                    <button
+                      type="button"
+                      onClick={() => { setSelectedFile(null); setSelectedFileDataUrl(null); setSelectedFileName(null); if (certFileRef.current) certFileRef.current.value = ""; }}
+                      className="text-rose-500 hover:text-rose-700 cursor-pointer ml-2"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  onClick={() => certFileRef.current?.click()}
+                  className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition ${
+                    isDragging ? "border-orange-400 bg-orange-50" : "border-slate-200 hover:border-orange-300 hover:bg-slate-50"
+                  }`}
+                >
+                  <Upload className="h-6 w-6 text-slate-400 mx-auto mb-2" />
+                  <p className="text-xs text-slate-600 font-medium font-sans">
+                    {language === AppLanguage.MW ? "कागज खींचो/छोड़ो या टेप करो सा" : language === AppLanguage.HI ? "दस्तावेज़ खींचें/छोड़ें या टैप करें" : "Drag & drop document or tap to upload"}
+                  </p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">{language === AppLanguage.HI ? "JPG, PNG, PDF समर्थित" : "JPG, PNG, PDF supported"}</p>
+                </div>
+              )}
             </div>
 
             <button
@@ -398,6 +464,23 @@ export default function Certificates({
                     </span>
                   </div>
                 </div>
+
+                {/* Uploaded document preview (visible to Sachiv) */}
+                {app.docUrl && (
+                  <div className="mb-3 rounded-xl overflow-hidden border border-slate-200">
+                    {app.docUrl.startsWith("data:image") ? (
+                      <img src={app.docUrl} alt="Submitted document" className="w-full h-28 object-cover" />
+                    ) : (
+                      <div className="flex items-center justify-center h-16 bg-orange-50">
+                        <ImageIcon className="h-6 w-6 text-orange-400" />
+                      </div>
+                    )}
+                    <div className="bg-slate-50 px-3 py-1.5 flex items-center space-x-1.5 text-[10px] text-slate-500 font-sans border-t border-slate-100">
+                      <Upload className="h-3 w-3 text-slate-400" />
+                      <span>{language === AppLanguage.HI ? "नागरिक द्वारा अपलोड किया गया दस्तावेज़" : "Document uploaded by citizen"}</span>
+                    </div>
+                  </div>
+                )}
 
                 {/* Official remarks panel / Notification details */}
                 <div className="bg-stone-50 rounded-lg p-2.5 border border-stone-200/60 text-[11px] text-slate-500 leading-relaxed font-sans mb-3 flex items-start space-x-2">

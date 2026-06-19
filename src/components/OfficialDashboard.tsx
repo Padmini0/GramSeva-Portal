@@ -305,7 +305,12 @@ export default function OfficialDashboard({
             }`}
           >
             <Hammer className={`h-4.5 w-4.5 ${tab === "grievances" ? "text-orange-600" : "text-slate-400"}`} />
-            <span>{st.grievanceDesk}</span>
+            <span className="flex-1">{st.grievanceDesk}</span>
+            {openComplaints.length > 0 && (
+              <span className="bg-rose-600 text-white text-[9px] font-extrabold rounded-full w-4.5 h-4.5 flex items-center justify-center animate-pulse min-w-[18px] px-1">
+                {openComplaints.length}
+              </span>
+            )}
           </button>
 
           {/* MNREGA assets geotag */}

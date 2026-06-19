@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import { TRANSLATIONS } from "../translations";
 import { AppLanguage, UserRole, GrievanceCategory, GrievanceComplaint, GrievanceStatus, EscalationLevel } from "../types";
-import { Hammer, MapPin, Camera, Shield, AlertTriangle, CheckCircle2, UserCircle2, Clock, Phone } from "lucide-react";
+import { Hammer, MapPin, Camera, Shield, AlertTriangle, CheckCircle2, UserCircle2, Clock, Phone, Upload, X, ImageIcon } from "lucide-react";
 
 interface GrievancesProps {
   language: AppLanguage;
@@ -81,6 +81,31 @@ export default function Grievances({
   const [simLat, setSimLat] = useState<number | null>(null);
   const [simLon, setSimLon] = useState<number | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = useCallback((file: File) => {
+    if (!file.type.startsWith("image/")) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setImageUrl(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  }, []);
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => setIsDragging(false);
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleFileSelect(file);
+  };
 
   // Automated form pre-filling from Bhashini Voice Sathi extraction & user intents
   React.useEffect(() => {
@@ -146,6 +171,7 @@ export default function Grievances({
       description: description,
       citizenName: cName || defaultCitizenName,
       phone: cPhone || "9414000XXX",
+      photoUrl: imageUrl || undefined,
       latitude: simLat || 26.8122,
       longitude: simLon || 75.8011,
       status: GrievanceStatus.SUBMITTED,
@@ -632,45 +658,72 @@ export default function Grievances({
               />
             </div>
 
-            {/* GPS Sim & Photo Sim */}
-            <div className="grid grid-cols-2 gap-3 pb-2.5">
-              
-              {/* GPS button */}
-              <button
-                type="button"
-                onClick={handleSimulateGPS}
-                className={`py-2 px-3 rounded-xl border text-[11px] font-sans font-semibold flex items-center justify-center space-x-1 transition cursor-pointer ${
-                  simLat
-                    ? "bg-emerald-50 border-emerald-200 text-emerald-850"
-                    : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
-                }`}
-              >
-                <MapPin className="h-3.5 w-3.5 mr-0.5" />
-                <span>
-                  {simLat 
-                    ? `${simLat.toFixed(4)}, ${simLon?.toFixed(4)}` 
-                    : t.locationGeo}
-                </span>
-              </button>
+            {/* GPS button */}
+            <button
+              type="button"
+              onClick={handleSimulateGPS}
+              className={`w-full py-2 px-3 rounded-xl border text-[11px] font-sans font-semibold flex items-center justify-center space-x-1 transition cursor-pointer ${
+                simLat
+                  ? "bg-emerald-50 border-emerald-200 text-emerald-850"
+                  : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
+              }`}
+            >
+              <MapPin className="h-3.5 w-3.5 mr-0.5" />
+              <span>
+                {simLat 
+                  ? `${simLat.toFixed(4)}, ${simLon?.toFixed(4)}` 
+                  : t.locationGeo}
+              </span>
+            </button>
 
-              {/* Photo snap simulation */}
-              <button
-                type="button"
-                onClick={() => setImageUrl("simulated-grev-leak.png")}
-                className={`py-2 px-3 rounded-xl border text-[11px] font-sans font-semibold flex items-center justify-center space-x-1 transition cursor-pointer ${
-                  imageUrl
-                    ? "bg-emerald-50 border-emerald-200 text-emerald-850"
-                    : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
-                }`}
-              >
-                <Camera className="h-3.5 w-3.5 mr-0.5" />
-                <span>
-                  {imageUrl 
-                    ? (language === AppLanguage.MW ? "✓ फोटो खीच ली सा" : language === AppLanguage.HI ? "✓ फोटो खींच ली है" : "✓ Image Captured")
-                    : t.captureSelfie}
-                </span>
-              </button>
-
+            {/* Real photo upload with drag-and-drop */}
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase font-sans">
+                {language === AppLanguage.MW ? "फोटो जोड़ो सा (खींचो या अपलोड करो)" : language === AppLanguage.HI ? "फोटो संलग्न करें (खींचें या अपलोड करें)" : "Attach Photo (Drag & Drop or Upload)"}
+              </label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFileSelect(file);
+                }}
+              />
+              {imageUrl ? (
+                <div className="relative rounded-xl overflow-hidden border border-emerald-200 bg-emerald-50">
+                  <img src={imageUrl} alt="Complaint photo" className="w-full h-32 object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => { setImageUrl(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}
+                    className="absolute top-2 right-2 bg-rose-600 text-white rounded-full p-0.5 hover:bg-rose-700 cursor-pointer"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                  <span className="absolute bottom-2 left-2 bg-emerald-700/80 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center space-x-1">
+                    <CheckCircle2 className="h-3 w-3" />
+                    <span>{language === AppLanguage.MW ? "फोटो जुड़ी सा" : language === AppLanguage.HI ? "फोटो संलग्न है" : "Photo Attached"}</span>
+                  </span>
+                </div>
+              ) : (
+                <div
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition ${
+                    isDragging ? "border-orange-400 bg-orange-50" : "border-slate-200 hover:border-orange-300 hover:bg-slate-50"
+                  }`}
+                >
+                  <Camera className="h-6 w-6 text-slate-400 mx-auto mb-1.5" />
+                  <p className="text-xs text-slate-600 font-medium font-sans">
+                    {language === AppLanguage.MW ? "फोटो खींचो/छोड़ो या टेप करो सा" : language === AppLanguage.HI ? "फोटो खींचें/छोड़ें या टैप करें" : "Drag & drop or tap to upload photo"}
+                  </p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">{language === AppLanguage.HI ? "PNG, JPG, JPEG समर्थित" : "PNG, JPG, JPEG supported"}</p>
+                </div>
+              )}
             </div>
 
             <button
@@ -735,10 +788,34 @@ export default function Grievances({
                     </span>
                   </div>
 
+                  {/* NEW badge for freshly submitted complaints (visible to Sachiv) */}
+                  {role === UserRole.OFFICIAL && c.status === GrievanceStatus.SUBMITTED && (
+                    <div className="mb-2 flex items-center space-x-2">
+                      <span className="bg-rose-600 text-white text-[9px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider animate-pulse flex items-center space-x-1">
+                        <span className="w-1.5 h-1.5 bg-white rounded-full inline-block"></span>
+                        <span>{language === AppLanguage.MW ? "नवी शिकायत सा" : language === AppLanguage.HI ? "नई शिकायत" : "NEW"}</span>
+                      </span>
+                      <span className="text-[10px] text-rose-600 font-semibold">
+                        {language === AppLanguage.MW ? "तुरन्त ध्यान दो सा" : language === AppLanguage.HI ? "तत्काल कार्रवाई अपेक्षित" : "Awaiting Assignment"}
+                      </span>
+                    </div>
+                  )}
+
                   {/* Body description */}
                   <p className="text-xs text-slate-705 leading-relaxed font-sans mb-3 pr-2 font-medium">
                     {getComplaintDescription(c)}
                   </p>
+
+                  {/* Attached photo if present */}
+                  {c.photoUrl && (
+                    <div className="mb-3 rounded-xl overflow-hidden border border-slate-200">
+                      <img src={c.photoUrl} alt="Complaint evidence" className="w-full h-32 object-cover" />
+                      <div className="bg-slate-50 px-3 py-1.5 flex items-center space-x-1.5 text-[10px] text-slate-500 font-sans border-t border-slate-100">
+                        <ImageIcon className="h-3 w-3 text-slate-400" />
+                        <span>{language === AppLanguage.MW ? "नागरिक द्वारा फोटो जोड़ी सा" : language === AppLanguage.HI ? "नागरिक द्वारा संलग्न फोटो" : "Photo evidence attached by citizen"}</span>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Citizen details */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-slate-500 border-t border-slate-200/50 pt-2.5 mb-3">
