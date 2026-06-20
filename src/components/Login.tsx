@@ -1586,42 +1586,28 @@ export default function Login({
                       )}
                     </div>
 
-                    {/* OTP SMS Preview + Resend */}
+                    {/* OTP Sent Status */}
                     {!otpVerified && generatedOtp && (
                       <div className="mt-2.5 space-y-2">
-                        {/* Mock SMS notification card */}
-                        <div className="rounded-xl border border-slate-200 overflow-hidden">
-                          <div className="bg-slate-100 px-3 py-1.5 flex items-center justify-between">
-                            <div className="flex items-center space-x-1.5">
-                              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                              <span className="text-[9px] font-bold text-slate-600 uppercase tracking-widest font-mono">SMS • GramSeva Rajasthan</span>
-                            </div>
-                            <span className="text-[9px] text-slate-400 font-mono">Now</span>
-                          </div>
-                          <div className="bg-white px-3 py-2.5">
-                            <p className="text-[10px] text-slate-600 leading-relaxed">
+                        <div className="flex items-center space-x-2 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2.5">
+                          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-[10px] font-bold text-emerald-800">
                               {language === AppLanguage.HI
-                                ? `आपका GramSeva ओटीपी है: `
+                                ? "OTP भेज दिया गया"
                                 : language === AppLanguage.MW
-                                  ? `थारो GramSeva OTP सा: `
-                                  : "Your GramSeva OTP is: "}
-                              <span className="font-black text-xl tracking-[0.3em] text-orange-700 font-mono">{generatedOtp}</span>
+                                  ? "OTP भेजियो गयो सा"
+                                  : "OTP sent successfully"}
                             </p>
-                            <p className="text-[9px] text-slate-400 mt-1">
-                              {language === AppLanguage.HI ? "इस कोड को किसी से साझा न करें। 5 मिनट में अवैध हो जाएगा।" : "Do not share this OTP with anyone. Valid for 5 minutes."}
-                            </p>
+                            <p className="text-[9px] text-emerald-600 truncate">+91 {phone}</p>
                           </div>
                         </div>
-
-                        {/* Resend countdown */}
                         <div className="flex items-center justify-between text-[10px] font-semibold text-slate-500 px-0.5">
-                          <span>
-                            {language === AppLanguage.HI
-                              ? `+91 ${phone} पर भेजा गया`
-                              : `Sent to +91 ${phone}`}
+                          <span className="text-slate-400">
+                            {language === AppLanguage.HI ? "5 मिनट में अवैध होगा" : "Expires in 5 minutes"}
                           </span>
                           {otpResendCountdown > 0 ? (
-                            <span className="text-slate-400 font-mono">{otpResendCountdown}s</span>
+                            <span className="text-slate-400 font-mono">{language === AppLanguage.HI ? `दोबारा भेजें ${otpResendCountdown}s` : `Resend in ${otpResendCountdown}s`}</span>
                           ) : (
                             <button
                               type="button"
@@ -1826,29 +1812,20 @@ export default function Login({
                             {language === AppLanguage.HI ? "प्रमाणित करें" : "Verify Code"}
                           </button>
                         </div>
-                        {/* OTP SMS preview - step 3 */}
-                        {step3GeneratedOtp && (
-                          <div className="rounded-xl border border-slate-200 overflow-hidden mt-0.5">
-                            <div className="bg-slate-100 px-3 py-1 flex items-center justify-between">
-                              <div className="flex items-center space-x-1.5">
-                                <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                                <span className="text-[8px] font-bold text-slate-600 uppercase tracking-widest font-mono">SMS • GramSeva</span>
-                              </div>
-                              <span className="text-[8px] text-slate-400 font-mono">Now</span>
-                            </div>
-                            <div className="bg-white px-3 py-2">
-                              <p className="text-[10px] text-slate-600">
-                                {language === AppLanguage.HI ? "आपका OTP: " : "Your OTP: "}
-                                <span className="font-black text-lg tracking-[0.3em] text-orange-700 font-mono">{step3GeneratedOtp}</span>
-                              </p>
-                              <p className="text-[8px] text-slate-400 mt-0.5">{language === AppLanguage.HI ? "किसी से साझा न करें। 5 मिनट में अवैध।" : "Valid 5 min. Do not share."}</p>
-                            </div>
+                        {/* OTP Sent Status - step 3 */}
+                        <div className="flex items-center space-x-2 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2.5 mt-1">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-[10px] font-bold text-emerald-800">
+                              {language === AppLanguage.HI ? "OTP भेज दिया गया" : "OTP sent successfully"}
+                            </p>
+                            <p className="text-[9px] text-emerald-600">+91 {phone}</p>
                           </div>
-                        )}
-                        <div className="flex items-center justify-between text-[9px] font-semibold text-slate-500 px-0.5 mt-1">
-                          <span>{language === AppLanguage.HI ? `+91 ${phone} पर भेजा` : `Sent to +91 ${phone}`}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-[9px] font-semibold text-slate-500 px-0.5 mt-1.5">
+                          <span className="text-slate-400">{language === AppLanguage.HI ? "5 मिनट में अवैध" : "Expires in 5 min"}</span>
                           {step3OtpResendCountdown > 0 ? (
-                            <span className="text-slate-400 font-mono">{step3OtpResendCountdown}s</span>
+                            <span className="text-slate-400 font-mono">{language === AppLanguage.HI ? `दोबारा भेजें ${step3OtpResendCountdown}s` : `Resend in ${step3OtpResendCountdown}s`}</span>
                           ) : (
                             <button
                               type="button"
